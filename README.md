@@ -1,2 +1,3 @@
 # LaTex-Renderer
 An HTML that can render LaTex.
+一个html网页，能将AI输出的未经渲染的含有LaTex公式的文本渲染出来并显示或输出为PDF.
