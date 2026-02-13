@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes">
+    <title>LaTeX·PDF渲染器</title>
+    <!-- MathJax 稳定双源 (BootCDN + jsDelivr备选) -->
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']], processEscapes: true },
+            options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] },
+            loader: { load: ['[tex]/noerrors'] }
+        };
+    </script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/mathjax/3.2.2/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <script>
+        setTimeout(() => {
+            if (typeof MathJax === 'undefined' || !MathJax.tex) {
+                let s = document.createElement('script');
+                s.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js';
+                document.head.appendChild(s);
+            }
+        }, 2000);
+    </script>
+    <style>
+        /* 全局紧凑调小 —— 手机/桌面皆宜 */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background: #e2ecf0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 16px;
+        }
+        .app {
+            max-width: 950px;
+            width: 100%;
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 16px 30px -10px #1b4a5a30;
+            padding: 24px 28px;
+            border: 1px solid #d0e2ea;
+        }
+        h1 {
+            font-size: 1.6rem;
+            font-weight: 550;
+            color: #0b4452;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        h1 span {
+            background: #1f6573;
+            color: white;
+            font-size: 0.7rem;
+            padding: 4px 14px;
+            border-radius: 30px;
+        }
+        .sub {
+            font-size: 0.85rem;
+            color: #256575;
+            background: #ecf7fb;
+            padding: 10px 18px;
+            border-radius: 20px;
+            border-left: 5px solid #3897ad;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+        .input-box {
+            background: #f6fcff;
+            border-radius: 20px;
+            padding: 18px;
+            border: 1px solid #cfe1e9;
+            margin-bottom: 16px;
+        }
+        .input-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #0e5563;
+            margin-bottom: 10px;
+        }
+        textarea {
+            width: 100%;
+            padding: 16px 18px;
+            border: 1px solid #bfd7e2;
+            border-radius: 18px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            background: white;
+            resize: vertical;
+        }
+        textarea:focus {
+            border-color: #318ca0;
+            outline: none;
+            box-shadow: 0 0 0 2px #318ca030;
+        }
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 16px;
+            margin: 12px 0 8px;
+        }
+        .btn {
+            border: none;
+            background: #1d6d7c;
+            color: white;
+            padding: 10px 26px;
+            border-radius: 36px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            border: 1px solid #ffffff80;
+            box-shadow: 0 6px 12px -8px #0c4a55;
+            transition: 0.1s;
+        }
+        .btn:hover {
+            background: #2a889b;
+            transform: scale(0.97);
+        }
+        .btn-outline {
+            background: white;
+            color: #1a6b78;
+            border: 1px solid #3993a8;
+            box-shadow: none;
+        }
+        .btn-outline:hover {
+            background: #ecf8fc;
+        }
+        .render-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 22px 0 10px;
+        }
+        .render-title {
+            font-weight: 600;
+            color: #0a5a67;
+            font-size: 1rem;
+        }
+        .render-area {
+            background: #faffff;
+            border-radius: 20px;
+            padding: 24px 28px;
+            border: 1px solid #c0dbe6;
+            box-shadow: inset 0 1px 4px #00000008;
+            overflow-x: auto;
+            font-size: 1.2rem;
+            line-height: 2.0;
+            min-height: 150px;
+            transition: all 0.2s;
+        }
+        /* 全屏阅读：字体1.1rem 更舒适 */
+        .render-area:-webkit-full-screen {
+            background: #f5fcff;
+            padding: 40px;
+            font-size: 1.1rem;
+        }
+        .render-area:fullscreen {
+            background: #f5fcff;
+            padding: 40px;
+            font-size: 1.1rem;
+        }
+        .status-line {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            margin-top: 14px;
+            font-size: 0.75rem;
+            color: #307180;
+            gap: 18px;
+        }
+        .badge {
+            background: #e2f0f5;
+            padding: 4px 14px;
+            border-radius: 30px;
+        }
+        hr {
+            border: 0.5px solid #cde3ec;
+            margin: 16px 0 8px;
+        }
+        /* 打印样式优化 */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .app {
+                box-shadow: none;
+                border: none;
+                padding: 0;
+                margin: 0;
+                max-width: 100%;
+            }
+            .input-box, .toolbar, .render-header, .status-line, hr, .sub, h1 span, .btn, .btn-outline {
+                display: none !important;
+            }
+            .render-area {
+                border: none;
+                box-shadow: none;
+                padding: 0.5in;
+                font-size: 12pt;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <h1>
+            📐 LaTeX·纯净渲染
+            <span>PDF直出</span>
+        </h1>
+        
+
+        <!-- 输入区：粘贴标准LaTeX源码 -->
+        <div class="input-box">
+            <div class="input-header">
+                <span>📋 LaTeX 源码</span>
+                <span style="color:#1d7585;">支持LaTex渲染+PDF导出</span>
+            </div>
+            <textarea id="latexInput" rows="5"></textarea>
+        </div>
+
+        <!-- 工具条：渲染 + 全屏 + PDF导出（无docx残留） -->
+        <div class="toolbar">
+            <button class="btn" id="renderBtn">
+                ⚡ 渲染公式
+            </button>
+            <button class="btn btn-outline" id="fullscreenBtn">
+                📺 全屏阅读
+            </button>
+            <button class="btn btn-outline" id="pdfBtn">
+                📄 生成PDF
+            </button>
+        </div>
+
+        <!-- 渲染容器——所有公式在此显示 -->
+        <div class="render-header">
+            <span class="render-title">✨ 渲染结果</span>
+        </div>
+        <div id="mathContainer" class="render-area">
+            
+        </div>
+
+        <hr>
+        <div class="status-line">
+            <span class="badge">🧪 纯渲染·0转换</span>
+            <span class="badge">🌐 MathJax BootCDN+备选</span>
+            <span class="badge">📄 PDF生成基于浏览器打印</span>
+        </div>
+    </div>
+
+    <script>
+        (function(){
+            "use strict";
+
+            const inputEl = document.getElementById('latexInput');
+            const container = document.getElementById('mathContainer');
+            const renderBtn = document.getElementById('renderBtn');
+            const fullscreenBtn = document.getElementById('fullscreenBtn');
+            const pdfBtn = document.getElementById('pdfBtn');
+
+            // ---------- 渲染核心：原样保留LaTeX定界符 ----------
+            function render() {
+                const source = inputEl.value;
+                if (!source.trim()) return;
+
+                let lines = source.split('\n');
+                let html = '';
+                lines.forEach(line => {
+                    let trimmed = line.trim();
+                    if (trimmed === '') {
+                        html += '<br>';
+                    } else {
+                        // 保留原始定界符，只做HTML转义（防止XSS）
+                        html += `<p style="margin:0.6rem 0;">${escapeHtml(line)}</p>`;
+                    }
+                });
+                container.innerHTML = html;
+
+                // 触发MathJax重新渲染
+                if (window.MathJax && typeof MathJax.texReset === 'function') {
+                    MathJax.texReset();
+                    MathJax.typesetPromise([container]).catch(e => {
+                        console.warn('MathJax渲染异常', e);
+                        container.innerHTML += '<p style="color:#b34a4a;">⚠️ 公式语法错误，请检查</p>';
+                    });
+                } else {
+                    let retry = 0;
+                    let timer = setInterval(() => {
+                        if (window.MathJax && MathJax.texReset) {
+                            clearInterval(timer);
+                            MathJax.texReset();
+                            MathJax.typesetPromise([container]).catch(console.warn);
+                        }
+                        if (++retry > 30) clearInterval(timer);
+                    }, 100);
+                }
+            }
+
+            function escapeHtml(unsafe) {
+                return unsafe.replace(/&/g, '&amp;')
+                             .replace(/</g, '&lt;')
+                             .replace(/>/g, '&gt;')
+                             .replace(/"/g, '&quot;')
+                             .replace(/'/g, '&#039;');
+            }
+
+            // ---------- 全屏阅读 (字体已由CSS调至1.1rem) ----------
+            function toggleFullScreen() {
+                if (!document.fullscreenElement) {
+                    container.requestFullscreen().catch(err => {
+                        alert(`全屏失败: ${err.message}`);
+                    });
+                } else {
+                    document.exitFullscreen();
+                }
+            }
+
+            // ---------- PDF导出终极方案：浏览器原生打印 ----------
+            function exportPDF() {
+                // 保存当前渲染内容
+                const content = container.innerHTML;
+                
+                // 创建隐藏的打印iframe
+                const printFrame = document.createElement('iframe');
+                printFrame.style.position = 'fixed';
+                printFrame.style.top = '-9999px';
+                printFrame.style.left = '-9999px';
+                printFrame.style.width = '0';
+                printFrame.style.height = '0';
+                printFrame.style.border = 'none';
+                document.body.appendChild(printFrame);
+                
+                const doc = printFrame.contentWindow.document;
+                doc.open();
+                doc.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>LaTeX公式导出PDF</title>
+                        <!-- 重新加载MathJax，保证公式完美显示 -->
+                        <script src="https://cdn.bootcdn.net/ajax/libs/mathjax/3.2.2/es5/tex-chtml.js" async><\/script>
+                        <style>
+                            body {
+                                font-family: 'Times New Roman', 'STIX Two Math', serif;
+                                font-size: 14pt;
+                                margin: 2cm;
+                                line-height: 1.8;
+                                background: white;
+                                color: black;
+                            }
+                            mjx-container {
+                                display: inline-block;
+                                margin: 0.15em 0;
+                                white-space: nowrap;
+                            }
+                            p {
+                                margin: 0.8em 0;
+                            }
+                            @media print {
+                                body { margin: 1.8cm; }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        ${content}
+                        <p style="text-align: center; margin-top: 1.5cm; color: gray; font-size: 10pt;">
+                            — 由 LaTeX·纯净渲染器 生成 —
+                        </p>
+                    </body>
+                    </html>
+                `);
+                doc.close();
+
+                // 等待MathJax渲染完成后调出打印对话框
+                setTimeout(() => {
+                    printFrame.contentWindow.focus();
+                    printFrame.contentWindow.print();
+                    
+                    // 打印对话框关闭后移除iframe
+                    setTimeout(() => {
+                        document.body.removeChild(printFrame);
+                    }, 500);
+                }, 800); // 给MathJax留足渲染时间
+            }
+
+            // ---------- 事件绑定 ----------
+            renderBtn.addEventListener('click', render);
+            fullscreenBtn.addEventListener('click', toggleFullScreen);
+            pdfBtn.addEventListener('click', exportPDF);
+
+            // 快捷键 Ctrl+Enter 渲染
+            inputEl.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    render();
+                }
+            });
+
+            // 初始渲染
+            window.addEventListener('load', () => {
+                if (window.MathJax && MathJax.typesetPromise) {
+                    MathJax.typesetPromise([container]).catch(console.warn);
+                }
+            });
+
+            // 全屏状态变化监听（用于样式微调）
+            container.addEventListener('fullscreenchange', () => {
+                if (document.fullscreenElement === container) {
+                    container.classList.add('fullscreen-active');
+                } else {
+                    container.classList.remove('fullscreen-active');
+                }
+            });
+
+        })();
+    </script>
+</body>
+</html>
